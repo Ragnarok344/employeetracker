@@ -1,9 +1,11 @@
-const inquirer = require('inquirer');
+const {prompt} = require('inquirer');
 const mysql = require('mysql2');
-const cTable = require('console.table');
-const sequelize =('./config/connection.js');
+const logo = require('asciiart-logo');
+const sequelize = require('./config/connection');
+const env = require('dotenv').config();
 
 
+ 
 init();
 
 function init() {
@@ -84,7 +86,7 @@ function loadMainPrompts() {
         let choice = res.choice;
         switch(choice) {
             case "VIEW_EMPLOYEES":
-                viewEmployees();
+                viewEmployee();
                 break;
             case "VIEW_EMPLOYEES_BY_DEPARTMENT":
                 viewEmployeesByDepartment();
@@ -130,4 +132,89 @@ function loadMainPrompts() {
     )
 }
 
+function viewEmployee() {
+    sequelize.query('SELECT * FROM employee')
+    .then(([rows]) => {
+        let employees = rows;
+        console.log('\n');
+        console.table(employees);
+        
+    })
+    .then(() => loadMainPrompts());
 
+}
+
+function viewEmployeesByDepartment() {
+    sequelize.query('SELECT * FROM department')
+        .then(([rows]) => {
+            let departments = rows;
+            const departmentsChoices = departments.map(({id, name}) => ({
+                name: name,
+                value: id
+            }));
+            return prompt([
+                {
+                    type: "list",
+                    name: "departmentId",
+                    message: "Which department would you like to see employees for?",
+                    choices: departmentsChoices
+                }
+            ])
+        
+            .then(res => sequelize.query('SELECT * FROM department WHERE Id = ?', { replacements: [res.departmentId], type: sequelize.QueryTypes.SELECT }))
+        .then(([rows]) => {
+            let employees = rows;
+            console.log('\n');
+            console.table(employees);
+        })
+        .then(() => loadMainPrompts())
+    });
+}
+
+function viewEmployeesByManager() {
+    sequelize.query('SELECT * FROM employee WHERE manager_id IS NULL')
+    .then(([rows]) => {
+        let managers = rows;
+        const managerChoices = managers.map(({id, first_name, last_name}) => ({
+            name: `${first_name} ${last_name}`,
+            value: id
+        }));
+        prompt([
+            {
+                type: "list",
+                name: "managerId",
+                message: "Which manager would you like to see employees for?",
+                choices: managerChoices
+            }
+        ])
+        .then(res => sequelize.query('SELECT * FROM employee WHERE manager_id = ?', { replacements: [res.managerId], type: sequelize.QueryTypes.SELECT }))
+        .then(([rows]) => {
+            let employees = rows;
+            console.log('\n');
+            console.table(employees);
+        })
+        .then(() => loadMainPrompts());
+    });
+}
+
+function removeEmployee() {
+    sequelize.query('SELECT * FROM employee')
+    .then(([rows]) => {
+        let employees = rows;
+        const employeeChoices = employees.map(({id, first_name, last_name}) => ({
+            name: `${first_name} ${last_name}`,
+            value: id
+        }));
+        prompt([
+            {
+                type: "list",
+                name: "employeeId",
+                message: "Which employee would you like to remove?",
+                choices: employeeChoices
+            }
+        ])
+        .then(res => sequelize.query('DELETE FROM employee WHERE id = ?', { replacements: [res.employeeId]}))
+        .then(() => console.log('Employee removed'))
+        .then(() => loadMainPrompts());
+    });
+}
