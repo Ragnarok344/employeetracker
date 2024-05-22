@@ -56,14 +56,7 @@ function loadMainPrompts() {
                 name: "View All Roles",
                 value: "VIEW_ROLES"
             },
-            {
-                name: "Add Role",
-                value: "ADD_ROLE"
-            },
-            {
-                name: "Remove Role",
-                value: "REMOVE_ROLE"
-            },
+            
             {
                 name: "View All Departments",
                 value: "VIEW_DEPARTMENTS"
@@ -113,24 +106,16 @@ function loadMainPrompts() {
             case "VIEW_ROLES":
                 viewRoles();
                 break;
-            case "ADD_ROLE":
-                addRole();
-                break;
-            case "REMOVE_ROLE":
-                removeRole();
-                break;
+            
             case "VIEW_DEPARTMENTS":
                 viewDepartments();
                 break;
             case "ADD_DEPARTMENT":
                 addDepartment();
                 break;
-            case "REMOVE_DEPARTMENT":
-                removeDepartment();
-                break;
-                case "Department Budget":
-                viewBudgetByDepartment();
-                break;
+             case "REMOVE_DEPARTMENT":
+                 removeDepartment();
+                 break;
             case "QUIT":
                 quit();
 
@@ -316,60 +301,7 @@ function removeEmployee() {
         })
         .then(() => loadMainPrompts());
     }
-
-    function addRole() {
-        sequelize.query('SELECT * FROM department')
-        .then(([rows]) => {
-            let departments = rows;
-            const departmentChoices = departments.map(({id, name}) => ({
-                name: name,
-                value: id
-            }));
-            prompt([
-                {
-                    name: "title",
-                    message: "What is the name of the role?"
-                },
-                {
-                    name: "salary",
-                    message: "What is the salary of the role?"
-                },
-                {
-                    type: "list",
-                    name: "department_id",
-                    message: "Which department does the role belong to?",
-                    choices: departmentChoices
-                }
-            ])
-            .then(role => {
-                sequelize.query('INSERT INTO role SET ?', replacements   )
-            })
-            .then(() => console.log('Added ${role.title} to the database'))
-            .then(() => loadMainPrompts());
-        });
-    }
-
-    function removeRole() {
-        sequelize.query('SELECT * FROM role')
-        .then(([rows]) => {
-            let roles = rows;
-            const roleChoices = roles.map(({id, title}) => ({
-                name: title,
-                value: id
-            }));
-            prompt([
-                {
-                    type: "list",
-                    name: "roleId",
-                    message: "Which role would you like to remove? (Will also delete employees!)",
-                    choices: roleChoices
-                }
-            ])
-            .then(res => sequelize.query('DELETE FROM role WHERE id = ?', { replacements: [res.roleId]}))
-            .then(() => console.log('${role.title} removed'))
-            .then(() => loadMainPrompts());
-        });
-    }
+    
 
     function viewDepartments() {
         sequelize.query('SELECT * FROM department')
@@ -385,20 +317,25 @@ function removeEmployee() {
         sequelize.query('SELECT * FROM department') 
         .then(([rows]) => {
             let departments = rows;
-            const departmentChoices = departments.map(({id, name}) => ({
+            const department = departments.map(({id, name, budget}) => ({
                 name: name,
-                value: id
+                value: id,
+                budget: budget
             }));
             prompt([
                 {
                     name: "name",
                     message: "What is the name of the department?"
                 },
+                {
+                    name: "budget",
+                    message: "What is the budget for the department?"
+                }
                 
             ])
             .then(department => {
                 sequelize.query('INSERT INTO department (name) VALUES (?)',
-                {replacements:[department.name], type: sequelize.QueryTypes.INSERT})
+                {replacements:[department.name,department.budget], type: sequelize.QueryTypes.INSERT})
             
             })
             .then(() => console.log('Department added to the database!'))
@@ -427,29 +364,80 @@ function removeEmployee() {
             .then(() => loadMainPrompts());
         });
     }
+     
 
-    function viewBudgetByDepartment() {
-        sequelize.query('SELECT * FROM department')
-        .then(([rows]) => {
-            let departments = rows;
-            const departmentChoices = departments.map(({name, id}) => ({
-                name: name,
-                value: id
-            }));
-            prompt([
-                {
-                    type: "list",
-                    name: "departmentId",
-                    message: "Which department's budget would you like to see?",
-                    choices: departmentChoices
-                }
-            ])
-            .then(res => sequelize.query('SELECT SUM(salary) as budget FROM role WHERE salary = ?', 
-{ replacements: [res.departmentId], type: sequelize.QueryTypes.SELECT }))
-.then(([rows]) => {
-    let budget = rows[0].budget;
-    console.log('\n');
-    console.log(`Total budget: ${budget}`);
-        })
-    })
-}
+function addEmployee() {
+    prompt([
+        {
+            name: "first_name",
+            message: "What is the employee's first name?"
+        },
+        {
+            name: "last_name",
+            message: "What is the employee's last name?"
+        }
+])
+.then(res => {
+    let firstName = res.first_name;
+    let lastName = res.last_name;
+
+    sequelize.query('SELECT * FROM role')
+    .then(([rows]) => {
+        let roles = rows;
+        const roleChoices = roles.map(({id, title}) => ({
+            name: title,
+            value: id
+        }));
+        prompt([
+            {
+                type: "list",
+                name: "roleId",
+                message: "What is the employee's role?",
+                choices: roleChoices
+            }
+        ])
+        .then(res => {
+            let roleId = res.roleId;
+
+            sequelize.query('SELECT * FROM employee')
+            .then(([rows]) => {
+                let employees = rows;
+                const managerChoices = employees.map(({id, first_name, last_name}) => ({
+                    name: `${first_name} ${last_name}`,
+                    value: id
+                }));
+                managerChoices.unshift({name: "None", value: null});
+                prompt([
+                    {
+                        type: "list",
+                        name: "managerId",
+                        message: "Who is the employee's manager?",
+                        choices: managerChoices
+                    }
+                ])
+                .then(res => {
+                    let managerId = res.managerId;
+                    let employee = {
+                        manager_id: managerId,
+                        role_id: roleId,
+                        first_name: firstName,
+                        last_name: lastName
+                    }
+                    console.log(employee)
+                    sequelize.query('INSERT INTO employee (first_name, last_name, manager_id, role_id) VALUES (?, ?, ?, ?)',
+                {replacements:[employee.first_name, employee.last_name, employee.manager_id, employee.role_id], type: sequelize.QueryTypes.INSERT})
+                })
+                .then(() => console.log('Employee added to the database'))
+                .then(() => loadMainPrompts());
+            });
+        });
+    }
+    );
+})}
+
+function quit() {
+    console.log("Goodbye!");
+    process.exit();
+  }
+
+
