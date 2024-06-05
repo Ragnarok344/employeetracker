@@ -56,7 +56,10 @@ function loadMainPrompts() {
                 name: "View All Roles",
                 value: "VIEW_ROLES"
             },
-            
+            {
+                name: "Add Role",
+                value: "Add_Roles"
+            },
             {
                 name: "View All Departments",
                 value: "VIEW_DEPARTMENTS"
@@ -106,6 +109,9 @@ function loadMainPrompts() {
             case "VIEW_ROLES":
                 viewRoles();
                 break;
+                case "Add_Roles":
+                    addRole();
+                    break;
             
             case "VIEW_DEPARTMENTS":
                 viewDepartments();
@@ -334,7 +340,7 @@ function removeEmployee() {
                 
             ])
             .then(department => {
-                sequelize.query('INSERT INTO department (name) VALUES (?)',
+                sequelize.query('INSERT INTO department (name, budget) VALUES (?, ?)',
                 {replacements:[department.name,department.budget], type: sequelize.QueryTypes.INSERT})
             
             })
@@ -434,6 +440,38 @@ function addEmployee() {
     }
     );
 })}
+function addRole() {
+    sequelize.query('SELECT * FROM department')
+    .then(([rows]) => {
+        let departments = rows;
+        
+        prompt([
+            {
+                name: "title",
+                message: "What is the title of the role?"
+            },
+            {
+                name: "salary",
+                message: "What is the salary of the role?"
+            },
+            {
+                name: "deptId",
+                type:"list",
+                message: "What department is the role in?",
+                choices: departments
+            }
+        ])
+        .then(role => {
+            const chosenDepartment = departments.find(department => department.name === role.deptId)
+        
+            sequelize.query('INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)',
+            {replacements:[role.title, role.salary, chosenDepartment.id ], type: sequelize.QueryTypes.INSERT})
+        })
+        .then(() => console.log('Role added to the database!'))
+        .then(() => loadMainPrompts());
+    });
+
+}
 
 function quit() {
     console.log("Goodbye!");

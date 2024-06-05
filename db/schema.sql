@@ -5,8 +5,8 @@ USE `employee_db`;
 
 CREATE TABLE `department` (
   `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(25) NOT NULL
-  
+  `name` VARCHAR(25) NOT NULL,
+  `budget` DECIMAL(10, 2)
 );
 
 CREATE TABLE `role` (
